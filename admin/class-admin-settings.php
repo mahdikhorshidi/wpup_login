@@ -13,6 +13,30 @@ class Wpup_Admin_Settings {
 		add_action( 'admin_menu',           array( $this, 'add_menu' ) );
 		add_action( 'admin_init',           array( $this, 'register_settings' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'wp_ajax_wpup_test_sms', array( $this, 'ajax_test_sms' ) );
+	}
+
+	public function ajax_test_sms() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'دسترسی غیرمجاز.', 'wpup-login' ) ) );
+		}
+		check_ajax_referer( 'wpup_test_sms', 'nonce' );
+
+		$mobile = sanitize_text_field( isset( $_POST['mobile'] ) ? $_POST['mobile'] : '' );
+		$mobile = Wpup_Otp_Handler::sanitize_mobile( $mobile );
+
+		if ( ! Wpup_Otp_Handler::is_valid_mobile( $mobile ) ) {
+			wp_send_json_error( array( 'message' => __( 'شماره موبایل معتبر نیست.', 'wpup-login' ) ) );
+		}
+
+		$sms    = new Wpup_Sms_Api();
+		$result = $sms->send( $mobile, (string) wp_rand( 100000, 999999 ) );
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+		}
+
+		wp_send_json_success( array( 'message' => __( 'پیامک با موفقیت ارسال شد. صندوق ورودی موبایل خود را چک کنید.', 'wpup-login' ) ) );
 	}
 
 	public function add_menu() {
@@ -187,6 +211,43 @@ class Wpup_Admin_Settings {
 				submit_button( __( 'ذخیره تنظیمات', 'wpup-login' ) );
 				?>
 			</form>
+
+			<hr />
+			<div class="wpup-admin-test-box">
+				<h2><?php esc_html_e( 'تست اتصال به سرویس پیامک', 'wpup-login' ); ?></h2>
+				<p><?php esc_html_e( 'برای اطمینان از صحت تنظیمات، یک پیامک تست به شماره دلخواه ارسال کنید. در صورت خطا، پیام دقیق سرویس‌دهنده نمایش داده می‌شود.', 'wpup-login' ); ?></p>
+				<div class="wpup-test-row">
+					<input type="tel" id="wpup-test-mobile" placeholder="09xxxxxxxxx" maxlength="11" class="regular-text" />
+					<button type="button" class="button button-secondary" id="wpup-test-send">
+						<?php esc_html_e( 'ارسال پیامک تست', 'wpup-login' ); ?>
+					</button>
+				</div>
+				<div id="wpup-test-result" style="display:none;"></div>
+				<script>
+				( function( $ ) {
+					var nonce = '<?php echo esc_js( wp_create_nonce( 'wpup_test_sms' ) ); ?>';
+					$( '#wpup-test-send' ).on( 'click', function() {
+						var $btn = $( this );
+						var $res = $( '#wpup-test-result' );
+						var mobile = $( '#wpup-test-mobile' ).val().trim();
+						$res.hide();
+						$btn.prop( 'disabled', true ).text( 'در حال ارسال…' );
+						$.post( ajaxurl, {
+							action: 'wpup_test_sms', nonce: nonce, mobile: mobile,
+						} ).done( function( r ) {
+							var cls = r.success ? 'notice-success' : 'notice-error';
+							$res.removeClass( 'notice-success notice-error' )
+								.addClass( 'notice ' + cls )
+								.text( r.data.message ).show();
+						} ).fail( function() {
+							$res.addClass( 'notice notice-error' ).text( 'خطا در ارتباط با سرور.' ).show();
+						} ).always( function() {
+							$btn.prop( 'disabled', false ).text( 'ارسال پیامک تست' );
+						} );
+					} );
+				} )( jQuery );
+				</script>
+			</div>
 
 			<hr />
 			<div class="wpup-admin-shortcode-info">
