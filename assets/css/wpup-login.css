@@ -288,3 +288,74 @@
 		color: #a7aaad;
 	}
 }
+
+/* ============================================================
+   Mobile Prompt Modal
+   ============================================================ */
+
+.wpup-prompt-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba( 0, 0, 0, 0.55 );
+	z-index: 999999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 16px;
+	box-sizing: border-box;
+}
+
+.wpup-prompt-box {
+	position: relative;
+	background: var( --wpup-bg, #fff );
+	border-radius: var( --wpup-radius, 8px );
+	max-width: 420px;
+	width: 100%;
+	padding: 28px 24px 20px;
+	box-shadow: 0 12px 40px rgba( 0, 0, 0, 0.25 );
+	direction: rtl;
+	font-family: inherit;
+	box-sizing: border-box;
+}
+
+.wpup-prompt-box h3 {
+	margin: 0 0 8px;
+	font-size: 17px;
+	font-weight: 700;
+}
+
+.wpup-prompt-desc {
+	margin: 0 0 18px;
+	font-size: 13px;
+	color: #50575e;
+	line-height: 1.7;
+}
+
+.wpup-prompt-close {
+	position: absolute;
+	top: 10px;
+	left: 10px;
+	background: none;
+	border: none;
+	font-size: 22px;
+	cursor: pointer;
+	color: #50575e;
+	line-height: 1;
+	padding: 4px 8px;
+}
+
+.wpup-prompt-close:hover { color: #1d2327; }
+
+.wpup-prompt-actions {
+	text-align: center;
+	margin-top: 14px;
+	padding-top: 12px;
+	border-top: 1px solid #f0f0f1;
+}
+
+#wpup-prompt-otp {
+	text-align: center;
+	letter-spacing: 6px;
+	font-size: 20px;
+	font-weight: 700;
+}

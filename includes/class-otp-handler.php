@@ -8,31 +8,33 @@ defined( 'ABSPATH' ) || exit;
 class Wpup_Otp_Handler {
 
 	const TRANSIENT_PREFIX = 'wpup_otp_';
-	const EXPIRY_SECONDS   = 120; // 2 minutes
+
+	public static function expiry_seconds() {
+		return (int) get_option( 'wpup_otp_expiry', 120 );
+	}
 
 	/**
 	 * Generate and send a new OTP for the given mobile.
-	 * Returns true on success or WP_Error on failure.
 	 *
 	 * @param string $mobile
 	 * @return true|WP_Error
 	 */
-	public static function generate_and_send( string $mobile ) {
+	public static function generate_and_send( $mobile ) {
 		$mobile = self::sanitize_mobile( $mobile );
 
 		if ( ! self::is_valid_mobile( $mobile ) ) {
 			return new WP_Error( 'invalid_mobile', __( 'شماره موبایل وارد شده معتبر نیست.', 'wpup-login' ) );
 		}
 
-		// Rate-limit: block if a valid OTP already exists and was sent < 60s ago.
-		$existing = get_transient( self::TRANSIENT_PREFIX . 'sent_at_' . $mobile );
-		if ( false !== $existing && ( time() - (int) $existing ) < 60 ) {
+		// Rate-limit: block if previous request was < 60s ago.
+		$sent_at = get_transient( self::TRANSIENT_PREFIX . 'sent_at_' . $mobile );
+		if ( false !== $sent_at && ( time() - (int) $sent_at ) < 60 ) {
 			return new WP_Error( 'rate_limit', __( 'لطفاً ۶۰ ثانیه صبر کنید و دوباره تلاش کنید.', 'wpup-login' ) );
 		}
 
 		$otp = (string) wp_rand( 100000, 999999 );
 
-		set_transient( self::TRANSIENT_PREFIX . $mobile, wp_hash( $otp ), self::EXPIRY_SECONDS );
+		set_transient( self::TRANSIENT_PREFIX . $mobile, wp_hash( $otp ), self::expiry_seconds() );
 		set_transient( self::TRANSIENT_PREFIX . 'sent_at_' . $mobile, time(), 60 );
 
 		$sms    = new Wpup_Sms_Api();
@@ -54,7 +56,7 @@ class Wpup_Otp_Handler {
 	 * @param string $otp
 	 * @return true|WP_Error
 	 */
-	public static function verify( string $mobile, string $otp ): bool|WP_Error {
+	public static function verify( $mobile, $otp ) {
 		$mobile = self::sanitize_mobile( $mobile );
 		$stored = get_transient( self::TRANSIENT_PREFIX . $mobile );
 
@@ -73,31 +75,30 @@ class Wpup_Otp_Handler {
 	}
 
 	/**
-	 * Check whether a user with the given mobile exists.
-	 * Mobile is stored in user_meta as 'mobile'.
+	 * Find user by mobile meta. Returns WP_User|null.
 	 */
-	public static function user_exists_by_mobile( string $mobile ): ?WP_User {
+	public static function user_exists_by_mobile( $mobile ) {
 		$mobile = self::sanitize_mobile( $mobile );
 
-		$users = get_users( [
+		$users = get_users( array(
 			'meta_key'   => 'mobile',
 			'meta_value' => $mobile,
 			'number'     => 1,
-		] );
+		) );
 
 		return ! empty( $users ) ? $users[0] : null;
 	}
 
-	public static function sanitize_mobile( string $mobile ): string {
-		$mobile = preg_replace( '/\D/', '', $mobile );
-		// Normalise +98 / 0098 prefixes to leading zero.
-		if ( str_starts_with( $mobile, '98' ) && strlen( $mobile ) === 12 ) {
+	public static function sanitize_mobile( $mobile ) {
+		$mobile = preg_replace( '/\D/', '', (string) $mobile );
+		// Normalise 98... → 09...
+		if ( strlen( $mobile ) === 12 && strpos( $mobile, '98' ) === 0 ) {
 			$mobile = '0' . substr( $mobile, 2 );
 		}
 		return $mobile;
 	}
 
-	public static function is_valid_mobile( string $mobile ): bool {
+	public static function is_valid_mobile( $mobile ) {
 		return (bool) preg_match( '/^09[0-9]{9}$/', $mobile );
 	}
 }
