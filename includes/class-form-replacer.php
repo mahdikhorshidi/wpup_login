@@ -18,6 +18,9 @@ class Wpup_Form_Replacer {
 		add_action( 'wp_enqueue_scripts',    array( $this, 'enqueue_assets' ) );
 		add_action( 'login_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 
+		// Defer all our scripts so they never block rendering.
+		add_filter( 'script_loader_tag', array( $this, 'defer_scripts' ), 10, 2 );
+
 		// ── WooCommerce My Account ─────────────────────────────────────────────
 		// Render our form BEFORE the WC form, then capture + discard WC's output.
 		add_action( 'woocommerce_before_customer_login_form', array( $this, 'wc_render_and_start_capture' ), 1 );
@@ -45,6 +48,9 @@ class Wpup_Form_Replacer {
 	// =========================================================================
 
 	public function enqueue_assets() {
+		// Skip on admin and feeds for perf.
+		if ( is_admin() || is_feed() ) { return; }
+
 		wp_enqueue_style(
 			'wpup-login',
 			WPUP_LOGIN_URL . 'assets/css/wpup-login.css',
@@ -91,6 +97,18 @@ class Wpup_Form_Replacer {
 			WPUP_LOGIN_VERSION,
 			true
 		);
+	}
+
+	/**
+	 * Add `defer` to our scripts so HTML parsing isn't blocked.
+	 */
+	public function defer_scripts( $tag, $handle ) {
+		if ( in_array( $handle, array( 'wpup-login', 'wpup-inject', 'wpup-mobile-prompt' ), true ) ) {
+			if ( false === strpos( $tag, 'defer' ) ) {
+				$tag = str_replace( ' src=', ' defer src=', $tag );
+			}
+		}
+		return $tag;
 	}
 
 	// =========================================================================

@@ -6,147 +6,197 @@
 	var i18n = cfg.i18n;
 
 	// =========================================================================
-	// WpupForm – one instance per .wpup-login-wrapper on the page
+	// OTP digit-box widget: 6 inputs that behave as one
 	// =========================================================================
+	function initOtpBoxes( $container, onComplete ) {
+		var $boxes  = $container.find( 'input[maxlength="1"]' );
+		var $hidden = $container.find( 'input[type="hidden"]' );
 
-	function WpupForm( wrapper ) {
-		var $w = $( wrapper );
+		function readValue() {
+			var v = '';
+			$boxes.each( function () { v += this.value; } );
+			$hidden.val( v );
+			return v;
+		}
 
-		// ── Internal DOM refs (all scoped to this wrapper) ─────────────────
-		var fn = {
-			tab:          '.js-wpup-tab',
-			panel:        '.js-wpup-panel',
-			notice:       '.js-wpup-notice',
-			mobileInput:  '.js-wpup-mobile',
-			btnSendOtp:   '.js-wpup-send-otp',
+		$boxes.on( 'input', function () {
+			var $b = $( this );
+			var v  = $b.val().replace( /\D/g, '' );
+			$b.val( v.slice( -1 ) );
+			$b.toggleClass( 'wpup-filled', !! v );
 
-			// Login (existing user)
-			stepOtpLogin: '.js-wpup-step-otp-login',
-			otpInput:     '.js-wpup-otp',
-			btnVerify:    '.js-wpup-verify-login',
-			mobileDisp:   '.js-wpup-mobile-disp',
-			btnResend:    '.js-wpup-resend',
-			countdown:    '.js-wpup-countdown',
-			btnBack:      '.js-wpup-back-login',
-
-			// Register (new user)
-			stepOtpReg:   '.js-wpup-step-otp-reg',
-			otpRegInput:  '.js-wpup-otp-reg',
-			btnVerifyReg: '.js-wpup-verify-reg',
-			mobileDispReg:'.js-wpup-mobile-disp-reg',
-			btnResendReg: '.js-wpup-resend-reg',
-			countdownReg: '.js-wpup-countdown-reg',
-			btnBackReg:   '.js-wpup-back-reg',
-
-			stepMobile:   '.js-wpup-step-mobile',
-			redirect:     '.js-wpup-redirect',
-		};
-
-		function find( selector ) { return $w.find( selector ); }
-
-		var countdownTimer    = null;
-		var countdownTimerReg = null;
-
-		// ── Tabs ──────────────────────────────────────────────────────────
-		$w.on( 'click', fn.tab, function () {
-			var $tab    = $( this );
-			var panelId = $tab.data( 'target' );
-
-			find( fn.tab ).removeClass( 'wpup-tab--active' ).attr( 'aria-selected', 'false' );
-			$tab.addClass( 'wpup-tab--active' ).attr( 'aria-selected', 'true' );
-
-			find( fn.panel ).hide().attr( 'aria-hidden', 'true' );
-			$w.find( '[data-panel="' + panelId + '"]' ).show().attr( 'aria-hidden', 'false' );
+			if ( v ) {
+				$b.next( 'input' ).trigger( 'focus' );
+			}
+			var full = readValue();
+			if ( full.length === 6 && onComplete ) { onComplete( full ); }
 		} );
 
-		// ── Notice ────────────────────────────────────────────────────────
+		$boxes.on( 'keydown', function ( e ) {
+			var $b = $( this );
+			if ( e.key === 'Backspace' && ! $b.val() ) {
+				$b.prev( 'input' ).trigger( 'focus' );
+			} else if ( e.key === 'ArrowLeft' ) {
+				$b.next( 'input' ).trigger( 'focus' );
+			} else if ( e.key === 'ArrowRight' ) {
+				$b.prev( 'input' ).trigger( 'focus' );
+			}
+		} );
+
+		$boxes.on( 'paste', function ( e ) {
+			var pasted = ( e.originalEvent.clipboardData || window.clipboardData ).getData( 'text' );
+			pasted = pasted.replace( /\D/g, '' ).slice( 0, 6 );
+			if ( ! pasted ) { return; }
+			e.preventDefault();
+			$boxes.each( function ( i ) {
+				var d = pasted.charAt( i ) || '';
+				this.value = d;
+				$( this ).toggleClass( 'wpup-filled', !! d );
+			} );
+			$boxes.eq( Math.min( pasted.length, 5 ) ).trigger( 'focus' );
+			var full = readValue();
+			if ( full.length === 6 && onComplete ) { onComplete( full ); }
+		} );
+
+		return {
+			value:  function () { return readValue(); },
+			focus:  function () { $boxes.eq( 0 ).trigger( 'focus' ); },
+			clear:  function () { $boxes.val( '' ).removeClass( 'wpup-filled' ); $hidden.val( '' ); },
+		};
+	}
+
+	// =========================================================================
+	// Loading state helper
+	// =========================================================================
+	function setBusy( $btn, busy ) {
+		$btn.attr( 'aria-busy', busy ? 'true' : 'false' ).prop( 'disabled', busy );
+	}
+
+	// =========================================================================
+	// WpupForm – one instance per .wpup-login-wrapper
+	// =========================================================================
+	function WpupForm( wrapper ) {
+		var $w = $( wrapper );
+		function f( s ) { return $w.find( s ); }
+
+		var countdownTimer    = { id: null };
+		var countdownTimerReg = { id: null };
+
+		// ── Tabs
+		$w.on( 'click', '.js-wpup-tab', function () {
+			var $tab = $( this );
+			var t    = $tab.data( 'target' );
+			f( '.js-wpup-tab' ).removeClass( 'wpup-tab--active' ).attr( 'aria-selected', 'false' );
+			$tab.addClass( 'wpup-tab--active' ).attr( 'aria-selected', 'true' );
+			f( '.js-wpup-panel' ).hide().attr( 'aria-hidden', 'true' );
+			$w.find( '[data-panel="' + t + '"]' ).show().attr( 'aria-hidden', 'false' );
+		} );
+
+		// ── Notice
 		function notice( msg, type ) {
-			find( fn.notice )
+			f( '.js-wpup-notice' )
 				.text( msg )
 				.removeClass( 'wpup-notice--success wpup-notice--error' )
 				.addClass( 'wpup-notice--' + ( type || 'error' ) )
 				.show();
 		}
-		function clearNotice() { find( fn.notice ).hide(); }
+		function clearNotice() { f( '.js-wpup-notice' ).hide(); }
 
-		// ── Countdown ─────────────────────────────────────────────────────
+		// ── Countdown
 		function startCountdown( $cd, $btn, seconds, timerRef ) {
-			if ( timerRef && timerRef.id ) { clearInterval( timerRef.id ); }
+			if ( timerRef.id ) { clearInterval( timerRef.id ); }
 			var rem = seconds;
 			$btn.hide();
 			tick();
-			var id = setInterval( function () {
+			timerRef.id = setInterval( function () {
 				rem--;
-				if ( rem <= 0 ) { clearInterval( id ); $cd.text( '' ); $btn.show(); }
+				if ( rem <= 0 ) { clearInterval( timerRef.id ); $cd.text( '' ); $btn.show(); }
 				else { tick(); }
 			}, 1000 );
-			if ( timerRef ) { timerRef.id = id; }
 			function tick() { $cd.text( i18n.resend_in.replace( '%s', rem ) ); }
 		}
 
-		// ── Step 1: Send OTP ──────────────────────────────────────────────
+		// ── OTP widgets
+		var otpLogin = initOtpBoxes( f( '.js-wpup-step-otp-login .wpup-otp-boxes' ), function () {
+			verifyLogin();
+		} );
+		var otpReg = initOtpBoxes( f( '.js-wpup-step-otp-reg .wpup-otp-boxes' ), function () {
+			verifyRegister();
+		} );
+
+		// ── Send OTP
 		function sendOtp() {
 			clearNotice();
-			var mobile = find( fn.mobileInput ).val().trim();
-			if ( ! /^09[0-9]{9}$/.test( mobile ) ) {
-				notice( i18n.mobile_inv );
-				return;
-			}
-			var $btn = find( fn.btnSendOtp );
-			$btn.prop( 'disabled', true ).text( i18n.sending );
+			var mobile = f( '.js-wpup-mobile' ).val().trim();
+			var hp     = f( '.js-wpup-hp' ).val();
+			if ( hp ) { return; } // bot caught silently
+			if ( ! /^09[0-9]{9}$/.test( mobile ) ) { notice( i18n.mobile_inv ); return; }
+
+			var formTs = parseInt( $w.attr( 'data-form-ts' ), 10 ) || 0;
+			var elapsed = ( Date.now() / 1000 ) - formTs;
+			if ( elapsed < 2 ) { return; } // submitted too fast → likely a bot
+
+			var $btn = f( '.js-wpup-send-otp' );
+			setBusy( $btn, true );
 
 			$.post( cfg.ajaxurl, {
-				action: 'wpup_send_otp',
-				nonce:  cfg.nonce,
-				mobile: mobile,
+				action:  'wpup_send_otp',
+				nonce:   cfg.nonce,
+				mobile:  mobile,
+				hp:      hp,
+				form_ts: formTs,
 			} )
 			.done( function ( res ) {
 				if ( ! res.success ) { notice( res.data.message ); return; }
 				notice( i18n.otp_sent, 'success' );
-				find( fn.stepMobile ).hide();
+				f( '.js-wpup-step-mobile' ).hide();
 				if ( res.data.user_exists ) {
-					find( fn.mobileDisp ).text( mobile );
-					find( fn.stepOtpLogin ).show();
-					find( fn.otpInput ).focus();
-					var tr = {}; countdownTimer = tr;
-					startCountdown( find( fn.countdown ), find( fn.btnResend ), 60, tr );
+					f( '.js-wpup-mobile-disp' ).text( mobile );
+					f( '.js-wpup-step-otp-login' ).show();
+					setTimeout( function () { otpLogin.focus(); }, 100 );
+					startCountdown( f( '.js-wpup-countdown' ), f( '.js-wpup-resend' ), 60, countdownTimer );
 				} else {
-					find( fn.mobileDispReg ).text( mobile );
-					find( fn.stepOtpReg ).show();
-					find( fn.otpRegInput ).focus();
-					var tr2 = {}; countdownTimerReg = tr2;
-					startCountdown( find( fn.countdownReg ), find( fn.btnResendReg ), 60, tr2 );
+					f( '.js-wpup-mobile-disp-reg' ).text( mobile );
+					f( '.js-wpup-step-otp-reg' ).show();
+					setTimeout( function () { f( '.js-wpup-first-name' ).trigger( 'focus' ); }, 100 );
+					startCountdown( f( '.js-wpup-countdown-reg' ), f( '.js-wpup-resend-reg' ), 60, countdownTimerReg );
 				}
 			} )
 			.fail( function () { notice( i18n.net_error ); } )
-			.always( function () { $btn.prop( 'disabled', false ).text( i18n.send_otp ); } );
+			.always( function () { setBusy( $btn, false ); } );
 		}
 
-		$w.on( 'click', fn.btnSendOtp, sendOtp );
-		$w.on( 'keypress', fn.mobileInput, function ( e ) { if ( e.which === 13 ) { sendOtp(); } } );
+		$w.on( 'click', '.js-wpup-send-otp', sendOtp );
+		$w.on( 'keypress', '.js-wpup-mobile', function ( e ) { if ( e.which === 13 ) { sendOtp(); } } );
 
-		// ── Back ──────────────────────────────────────────────────────────
-		$w.on( 'click', fn.btnBack, function () {
-			find( fn.stepOtpLogin ).hide();
-			find( fn.stepMobile ).show();
-			clearNotice();
-			find( fn.mobileInput ).focus();
-		} );
-		$w.on( 'click', fn.btnBackReg, function () {
-			find( fn.stepOtpReg ).hide();
-			find( fn.stepMobile ).show();
-			clearNotice();
-			find( fn.mobileInput ).focus();
+		// Numeric-only on mobile input
+		$w.on( 'input', '.js-wpup-mobile', function () {
+			this.value = this.value.replace( /\D/g, '' );
 		} );
 
-		// ── Resend ────────────────────────────────────────────────────────
-		function resendOtp( $cd, $btn, timer ) {
-			var mobile = find( fn.mobileInput ).val().trim();
+		// ── Back
+		$w.on( 'click', '.js-wpup-back-login', function () {
+			f( '.js-wpup-step-otp-login' ).hide();
+			f( '.js-wpup-step-mobile' ).show();
+			otpLogin.clear();
+			clearNotice();
+			f( '.js-wpup-mobile' ).trigger( 'focus' );
+		} );
+		$w.on( 'click', '.js-wpup-back-reg', function () {
+			f( '.js-wpup-step-otp-reg' ).hide();
+			f( '.js-wpup-step-mobile' ).show();
+			otpReg.clear();
+			clearNotice();
+			f( '.js-wpup-mobile' ).trigger( 'focus' );
+		} );
+
+		// ── Resend
+		function resend( $cd, $btn, timer ) {
 			$btn.prop( 'disabled', true );
 			$.post( cfg.ajaxurl, {
 				action: 'wpup_send_otp',
 				nonce:  cfg.nonce,
-				mobile: mobile,
+				mobile: f( '.js-wpup-mobile' ).val().trim(),
 			} )
 			.done( function ( res ) {
 				if ( res.success ) {
@@ -159,43 +209,41 @@
 			} )
 			.fail( function () { notice( i18n.net_error ); $btn.prop( 'disabled', false ); } );
 		}
-		$w.on( 'click', fn.btnResend, function () {
-			resendOtp( find( fn.countdown ), find( fn.btnResend ), countdownTimer );
+		$w.on( 'click', '.js-wpup-resend', function () {
+			resend( f( '.js-wpup-countdown' ), f( '.js-wpup-resend' ), countdownTimer );
 		} );
-		$w.on( 'click', fn.btnResendReg, function () {
-			resendOtp( find( fn.countdownReg ), find( fn.btnResendReg ), countdownTimerReg );
+		$w.on( 'click', '.js-wpup-resend-reg', function () {
+			resend( f( '.js-wpup-countdown-reg' ), f( '.js-wpup-resend-reg' ), countdownTimerReg );
 		} );
 
-		// ── Verify (existing user) ────────────────────────────────────────
+		// ── Verify (existing user)
 		function verifyLogin() {
 			clearNotice();
-			var otp = find( fn.otpInput ).val().trim();
+			var otp = otpLogin.value();
 			if ( otp.length !== 6 ) { notice( i18n.otp_len ); return; }
-			var $btn = find( fn.btnVerify );
-			$btn.prop( 'disabled', true ).text( i18n.verifying );
+			var $btn = f( '.js-wpup-verify-login' );
+			setBusy( $btn, true );
 			$.post( cfg.ajaxurl, {
-				action:    'wpup_verify_login',
-				nonce:     cfg.nonce,
-				mobile:    find( fn.mobileInput ).val().trim(),
-				otp:       otp,
-				redirect:  find( fn.redirect ).val() || cfg.redirect,
+				action:   'wpup_verify_login',
+				nonce:    cfg.nonce,
+				mobile:   f( '.js-wpup-mobile' ).val().trim(),
+				otp:      otp,
+				redirect: f( '.js-wpup-redirect' ).val() || cfg.redirect,
 			} )
 			.done( handleResponse )
 			.fail( function () { notice( i18n.net_error ); } )
-			.always( function () { $btn.prop( 'disabled', false ).text( i18n.verify ); } );
+			.always( function () { setBusy( $btn, false ); } );
 		}
-		$w.on( 'click', fn.btnVerify, verifyLogin );
-		$w.on( 'keypress', fn.otpInput, function ( e ) { if ( e.which === 13 ) { verifyLogin(); } } );
 
-		// ── Verify (new user) ─────────────────────────────────────────────
+		// ── Verify (new user)
 		function verifyRegister() {
 			clearNotice();
-			var otp       = find( fn.otpRegInput ).val().trim();
-			var firstName = find( '.js-wpup-first-name' ).val().trim();
-			var lastName  = find( '.js-wpup-last-name' ).val().trim();
-			var username  = find( '.js-wpup-username' ).val().trim();
-			var password  = find( '.js-wpup-password' ).val();
-			var email     = find( '.js-wpup-email' ).val().trim();
+			var otp       = otpReg.value();
+			var firstName = f( '.js-wpup-first-name' ).val().trim();
+			var lastName  = f( '.js-wpup-last-name' ).val().trim();
+			var username  = f( '.js-wpup-username' ).val().trim();
+			var password  = f( '.js-wpup-password' ).val();
+			var email     = f( '.js-wpup-email' ).val().trim();
 
 			if ( ! firstName ) { notice( i18n.req_fname ); return; }
 			if ( ! lastName )  { notice( i18n.req_lname ); return; }
@@ -203,46 +251,37 @@
 			if ( password.length < 6 ) { notice( i18n.req_pass ); return; }
 			if ( otp.length !== 6 )    { notice( i18n.otp_len );  return; }
 
-			var $btn = find( fn.btnVerifyReg );
-			$btn.prop( 'disabled', true ).text( i18n.verifying );
+			var $btn = f( '.js-wpup-verify-reg' );
+			setBusy( $btn, true );
 			$.post( cfg.ajaxurl, {
-				action:      'wpup_verify_login',
-				nonce:       cfg.nonce,
-				mobile:      find( fn.mobileInput ).val().trim(),
-				otp:         otp,
-				first_name:  firstName,
-				last_name:   lastName,
-				username:    username,
-				password:    password,
-				email:       email,
-				redirect:    find( fn.redirect ).val() || cfg.redirect,
+				action:     'wpup_verify_login',
+				nonce:      cfg.nonce,
+				mobile:     f( '.js-wpup-mobile' ).val().trim(),
+				otp:        otp,
+				first_name: firstName,
+				last_name:  lastName,
+				username:   username,
+				password:   password,
+				email:      email,
+				redirect:   f( '.js-wpup-redirect' ).val() || cfg.redirect,
 			} )
 			.done( handleResponse )
 			.fail( function () { notice( i18n.net_error ); } )
-			.always( function () { $btn.prop( 'disabled', false ).text( i18n.verify ); } );
+			.always( function () { setBusy( $btn, false ); } );
 		}
-		$w.on( 'click', fn.btnVerifyReg, verifyRegister );
 
-		// ── Shared response handler ───────────────────────────────────────
+		$w.on( 'click', '.js-wpup-verify-login', verifyLogin );
+		$w.on( 'click', '.js-wpup-verify-reg', verifyRegister );
+
 		function handleResponse( res ) {
 			if ( ! res.success ) { notice( res.data.message ); return; }
 			notice( i18n.success, 'success' );
 			setTimeout( function () {
 				window.location.href = res.data.redirect || cfg.redirect || '/';
-			}, 700 );
+			}, 600 );
 		}
 
-		// ── OTP auto-advance ──────────────────────────────────────────────
-		$w.on( 'input', fn.otpInput, function () {
-			$( this ).val( $( this ).val().replace( /\D/g, '' ) );
-			if ( $( this ).val().length === 6 ) { verifyLogin(); }
-		} );
-		$w.on( 'input', fn.otpRegInput, function () {
-			$( this ).val( $( this ).val().replace( /\D/g, '' ) );
-			if ( $( this ).val().length === 6 ) { verifyRegister(); }
-		} );
-
-		// ── Password visibility toggle ────────────────────────────────────
+		// ── Password toggle
 		$w.on( 'click', '.js-wpup-toggle-pass', function () {
 			var $i = $( this ).prev( 'input' );
 			$i.attr( 'type', $i.attr( 'type' ) === 'password' ? 'text' : 'password' );
@@ -250,9 +289,8 @@
 	}
 
 	// =========================================================================
-	// Bootstrap all existing forms + expose factory for dynamic injection
+	// Bootstrap + expose factory
 	// =========================================================================
-
 	function initAll() {
 		$( '.wpup-login-wrapper' ).each( function () {
 			if ( ! $( this ).data( 'wpup-init' ) ) {
@@ -264,7 +302,6 @@
 
 	$( initAll );
 
-	// Public: called by wpup-inject.js after injecting a cloned form.
 	window.wpupInitForm = function ( el ) { new WpupForm( el ); };
 
 } )( jQuery );

@@ -1,325 +1,460 @@
 /* ============================================================
-   Optiwise Login – Front-end styles
-   RTL / Farsi-first, fully responsive.
+   Optiwise Login – modern, mobile-first, RTL-ready
    ============================================================ */
 
 :root {
-	--wpup-primary:       #2271b1;
-	--wpup-primary-hover: #135e96;
-	--wpup-success:       #00a32a;
-	--wpup-error:         #d63638;
-	--wpup-bg:            #ffffff;
-	--wpup-border:        #c3c4c7;
-	--wpup-radius:        8px;
-	--wpup-font:          inherit;
-	--wpup-transition:    0.2s ease;
+	--wpup-primary:        #2563eb;
+	--wpup-primary-hover:  #1d4ed8;
+	--wpup-primary-soft:   rgba(37, 99, 235, 0.08);
+	--wpup-success:        #10b981;
+	--wpup-error:          #ef4444;
+	--wpup-text:           #0f172a;
+	--wpup-text-muted:     #64748b;
+	--wpup-bg:             #ffffff;
+	--wpup-bg-alt:         #f8fafc;
+	--wpup-border:         #e2e8f0;
+	--wpup-border-strong:  #cbd5e1;
+	--wpup-radius:         14px;
+	--wpup-radius-sm:      8px;
+	--wpup-shadow:         0 10px 30px -8px rgba(15, 23, 42, 0.12), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+	--wpup-font:           -apple-system, BlinkMacSystemFont, "Vazirmatn", "Segoe UI", IRANSans, Tahoma, sans-serif;
+	--wpup-transition:     0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ── Wrapper ─────────────────────────────────────────────────────────────── */
+/* ── Wrapper ─────────────────────────────────────────────── */
 
 .wpup-login-wrapper {
-	font-family: var( --wpup-font );
+	font-family: var(--wpup-font);
 	direction: rtl;
-	max-width: 480px;
+	max-width: 440px;
 	margin: 0 auto;
-	background: var( --wpup-bg );
-	border: 1px solid var( --wpup-border );
-	border-radius: var( --wpup-radius );
-	padding: 24px;
+	background: var(--wpup-bg);
+	border: 1px solid var(--wpup-border);
+	border-radius: var(--wpup-radius);
+	padding: 28px 24px;
+	box-shadow: var(--wpup-shadow);
 	box-sizing: border-box;
+	color: var(--wpup-text);
+	font-size: 14px;
+	line-height: 1.6;
 }
 
-/* ── Tabs ────────────────────────────────────────────────────────────────── */
+.wpup-login-wrapper *,
+.wpup-login-wrapper *::before,
+.wpup-login-wrapper *::after { box-sizing: border-box; }
+
+/* ── Tabs ────────────────────────────────────────────────── */
 
 .wpup-tabs {
 	display: flex;
-	border-bottom: 2px solid var( --wpup-border );
-	margin-bottom: 24px;
-	gap: 4px;
+	background: var(--wpup-bg-alt);
+	padding: 4px;
+	border-radius: var(--wpup-radius-sm);
+	margin-bottom: 22px;
+	gap: 2px;
 }
 
 .wpup-tab {
 	flex: 1;
-	padding: 10px 16px;
+	padding: 9px 14px;
 	background: transparent;
 	border: none;
-	border-bottom: 3px solid transparent;
-	margin-bottom: -2px;
+	border-radius: 6px;
 	cursor: pointer;
-	font-size: 14px;
-	font-weight: 500;
-	color: #50575e;
-	transition: color var( --wpup-transition ), border-color var( --wpup-transition );
-	border-radius: 4px 4px 0 0;
+	font: 500 13px / 1 var(--wpup-font);
+	color: var(--wpup-text-muted);
+	transition: all var(--wpup-transition);
 }
 
-.wpup-tab:hover {
-	color: var( --wpup-primary );
-}
+.wpup-tab:hover { color: var(--wpup-text); }
 
 .wpup-tab--active {
-	color: var( --wpup-primary );
-	border-bottom-color: var( --wpup-primary );
+	background: var(--wpup-bg);
+	color: var(--wpup-primary);
+	box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
-/* ── Panel ───────────────────────────────────────────────────────────────── */
+.wpup-tab:focus-visible {
+	outline: 2px solid var(--wpup-primary);
+	outline-offset: 2px;
+}
+
+/* ── Panel headings ──────────────────────────────────────── */
 
 .wpup-panel-title {
-	margin: 0 0 8px;
-	font-size: 16px;
-	font-weight: 600;
+	margin: 0 0 6px;
+	font-size: 17px;
+	font-weight: 700;
+	color: var(--wpup-text);
 }
 
 .wpup-panel-desc {
-	margin: 0 0 20px;
-	color: #50575e;
-	font-size: 14px;
+	margin: 0 0 18px;
+	color: var(--wpup-text-muted);
+	font-size: 13px;
 }
 
-/* ── Notice ──────────────────────────────────────────────────────────────── */
+.wpup-panel-desc strong { color: var(--wpup-text); font-weight: 600; }
+
+/* ── Step transitions (subtle slide) ─────────────────────── */
+
+.js-wpup-step-mobile,
+.js-wpup-step-otp-login,
+.js-wpup-step-otp-reg {
+	animation: wpupFadeSlide 0.25s ease-out;
+}
+
+@keyframes wpupFadeSlide {
+	from { opacity: 0; transform: translateY(6px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Notice ──────────────────────────────────────────────── */
 
 .wpup-notice {
 	padding: 10px 14px;
-	border-radius: var( --wpup-radius );
-	font-size: 14px;
-	margin-bottom: 16px;
+	border-radius: var(--wpup-radius-sm);
+	font-size: 13px;
+	margin-bottom: 14px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	animation: wpupFadeSlide 0.25s ease-out;
+}
+
+.wpup-notice::before {
+	content: "";
+	width: 18px;
+	height: 18px;
+	flex-shrink: 0;
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: contain;
 }
 
 .wpup-notice--success {
-	background: #edfaef;
-	border: 1px solid #00a32a;
-	color: #00a32a;
+	background: rgba(16, 185, 129, 0.08);
+	color: var(--wpup-success);
+}
+
+.wpup-notice--success::before {
+	background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2310b981'><path fill-rule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.7-9.3a1 1 0 00-1.4-1.4L9 10.6 7.7 9.3a1 1 0 00-1.4 1.4l2 2a1 1 0 001.4 0l4-4z' clip-rule='evenodd'/></svg>");
 }
 
 .wpup-notice--error {
-	background: #fce8e8;
-	border: 1px solid var( --wpup-error );
-	color: var( --wpup-error );
+	background: rgba(239, 68, 68, 0.08);
+	color: var(--wpup-error);
 }
 
-/* ── Fields ──────────────────────────────────────────────────────────────── */
+.wpup-notice--error::before {
+	background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23ef4444'><path fill-rule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zM8.3 7.3a1 1 0 011.4 0L10 7.6l.3-.3a1 1 0 111.4 1.4L11.4 9l.3.3a1 1 0 11-1.4 1.4L10 10.4l-.3.3a1 1 0 11-1.4-1.4L8.6 9l-.3-.3a1 1 0 010-1.4z' clip-rule='evenodd'/></svg>");
+}
+
+/* ── Fields ──────────────────────────────────────────────── */
 
 .wpup-field {
-	margin-bottom: 16px;
+	margin-bottom: 14px;
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: 6px;
 }
 
 .wpup-field label {
-	font-size: 13px;
-	font-weight: 500;
-	color: #1d2327;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--wpup-text);
 }
 
-.wpup-required {
-	color: var( --wpup-error );
-}
+.wpup-required { color: var(--wpup-error); }
 
 .wpup-field input[type="text"],
 .wpup-field input[type="tel"],
 .wpup-field input[type="email"],
-.wpup-field input[type="password"],
-.wpup-field input[type="number"] {
+.wpup-field input[type="password"] {
 	width: 100%;
-	padding: 9px 12px;
-	border: 1px solid var( --wpup-border );
-	border-radius: 4px;
-	font-size: 14px;
-	box-sizing: border-box;
-	transition: border-color var( --wpup-transition ), box-shadow var( --wpup-transition );
-	background: #fff;
+	padding: 11px 14px;
+	border: 1px solid var(--wpup-border-strong);
+	border-radius: var(--wpup-radius-sm);
+	font: 400 14px / 1.4 var(--wpup-font);
+	background: var(--wpup-bg);
+	color: var(--wpup-text);
+	transition: border-color var(--wpup-transition), box-shadow var(--wpup-transition);
+	-webkit-appearance: none;
+	appearance: none;
 }
+
+.wpup-field input::placeholder { color: #94a3b8; }
 
 .wpup-field input:focus {
 	outline: none;
-	border-color: var( --wpup-primary );
-	box-shadow: 0 0 0 2px rgba( 34, 113, 177, 0.15 );
+	border-color: var(--wpup-primary);
+	box-shadow: 0 0 0 3px var(--wpup-primary-soft);
 }
 
-/* OTP input – larger, centered */
-#wpup-otp,
-#wpup-otp-reg {
-	text-align: center;
-	letter-spacing: 6px;
-	font-size: 22px;
-	font-weight: 700;
+.wpup-field input:disabled {
+	background: var(--wpup-bg-alt);
+	opacity: 0.7;
+}
+
+/* Honeypot (invisible to humans) */
+.wpup-hp {
+	position: absolute !important;
+	left: -9999px !important;
+	width: 1px !important;
+	height: 1px !important;
+	overflow: hidden !important;
+	opacity: 0 !important;
+	pointer-events: none !important;
+	tab-index: -1;
 }
 
 .wpup-field-row {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	gap: 12px;
+	gap: 10px;
 }
 
-@media ( max-width: 420px ) {
-	.wpup-field-row {
-		grid-template-columns: 1fr;
-	}
+/* ── OTP – 6 separate digit boxes ────────────────────────── */
+
+.wpup-otp-boxes {
+	display: flex;
+	gap: 6px;
+	direction: ltr;
+	justify-content: center;
+	margin: 4px 0 6px;
 }
 
-/* Password toggle */
+.wpup-otp-boxes input {
+	width: 44px;
+	height: 50px;
+	text-align: center;
+	font: 700 20px / 1 var(--wpup-font);
+	padding: 0 !important;
+	border: 1px solid var(--wpup-border-strong);
+	border-radius: var(--wpup-radius-sm);
+	background: var(--wpup-bg);
+	transition: all var(--wpup-transition);
+}
+
+.wpup-otp-boxes input:focus {
+	outline: none;
+	border-color: var(--wpup-primary);
+	box-shadow: 0 0 0 3px var(--wpup-primary-soft);
+	transform: scale(1.03);
+}
+
+.wpup-otp-boxes input.wpup-filled {
+	border-color: var(--wpup-primary);
+	background: var(--wpup-primary-soft);
+}
+
+/* ── Password toggle ─────────────────────────────────────── */
+
 .wpup-password-wrap {
 	position: relative;
-	display: flex;
-	align-items: center;
 }
 
 .wpup-password-wrap input {
-	flex: 1;
-	padding-left: 40px;
+	padding-left: 42px;
 }
 
 .wpup-toggle-pass {
 	position: absolute;
-	left: 8px;
+	left: 10px;
+	top: 50%;
+	transform: translateY(-50%);
 	background: none;
 	border: none;
 	cursor: pointer;
-	padding: 4px;
-	color: #50575e;
-	font-size: 16px;
+	padding: 6px;
+	color: var(--wpup-text-muted);
+	font-size: 14px;
 	line-height: 1;
+	border-radius: 4px;
 }
 
-/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.wpup-toggle-pass:hover { color: var(--wpup-primary); background: var(--wpup-primary-soft); }
+
+/* ── Buttons ─────────────────────────────────────────────── */
 
 .wpup-btn {
-	display: inline-block;
-	padding: 10px 20px;
-	font-size: 14px;
-	font-weight: 600;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 12px 20px;
+	font: 600 14px / 1 var(--wpup-font);
 	border: none;
-	border-radius: var( --wpup-radius );
+	border-radius: var(--wpup-radius-sm);
 	cursor: pointer;
-	transition: background var( --wpup-transition ), opacity var( --wpup-transition );
+	transition: all var(--wpup-transition);
 	width: 100%;
 	text-align: center;
+	min-height: 44px; /* good touch target */
+	position: relative;
 }
 
 .wpup-btn--primary {
-	background: var( --wpup-primary );
+	background: var(--wpup-primary);
 	color: #fff;
+	box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
 }
 
-.wpup-btn--primary:hover {
-	background: var( --wpup-primary-hover );
+.wpup-btn--primary:hover { background: var(--wpup-primary-hover); }
+
+.wpup-btn--primary:active { transform: translateY(1px); }
+
+.wpup-btn:focus-visible {
+	outline: 2px solid var(--wpup-primary);
+	outline-offset: 2px;
 }
 
-.wpup-btn:disabled {
-	opacity: 0.65;
+.wpup-btn:disabled,
+.wpup-btn[aria-busy="true"] {
+	opacity: 0.7;
 	cursor: not-allowed;
 }
+
+.wpup-btn[aria-busy="true"] .wpup-btn-label { opacity: 0.6; }
+
+.wpup-spinner {
+	display: none;
+	width: 16px;
+	height: 16px;
+	border: 2px solid currentColor;
+	border-top-color: transparent;
+	border-radius: 50%;
+	animation: wpupSpin 0.7s linear infinite;
+}
+
+.wpup-btn[aria-busy="true"] .wpup-spinner { display: inline-block; }
+
+@keyframes wpupSpin { to { transform: rotate(360deg); } }
 
 .wpup-btn-link {
 	background: none;
 	border: none;
-	color: var( --wpup-primary );
+	color: var(--wpup-primary);
 	cursor: pointer;
-	font-size: 13px;
-	padding: 4px 0;
-	text-decoration: underline;
+	font: 500 13px / 1 var(--wpup-font);
+	padding: 8px 4px;
+	border-radius: 4px;
+	transition: color var(--wpup-transition);
 }
 
-.wpup-btn-link:hover {
-	color: var( --wpup-primary-hover );
-}
+.wpup-btn-link:hover { color: var(--wpup-primary-hover); text-decoration: underline; }
 
-/* ── Resend row ──────────────────────────────────────────────────────────── */
+/* ── Resend countdown ────────────────────────────────────── */
 
 .wpup-resend {
 	text-align: center;
-	margin: 12px 0 4px;
-	font-size: 13px;
-	color: #50575e;
+	margin: 14px 0 4px;
+	font-size: 12px;
+	color: var(--wpup-text-muted);
+	min-height: 28px;
 }
-
-/* ── Back link ───────────────────────────────────────────────────────────── */
 
 .wpup-back {
-	display: block;
-	margin-top: 12px;
-	font-size: 13px;
+	display: inline-block;
+	margin-top: 6px;
+	font-size: 12px;
 }
 
-/* ── Forgot password ─────────────────────────────────────────────────────── */
+/* ── Forgot password ─────────────────────────────────────── */
 
 .wpup-forgot-password {
 	text-align: center;
-	margin-top: 12px;
-	font-size: 13px;
+	margin-top: 14px;
+	font-size: 12px;
 }
 
-.wpup-forgot-password a {
-	color: var( --wpup-primary );
-}
+.wpup-forgot-password a { color: var(--wpup-primary); text-decoration: none; }
+.wpup-forgot-password a:hover { text-decoration: underline; }
 
-/* ── Checkout notice wrapper ─────────────────────────────────────────────── */
+/* ── Checkout notice wrapper ─────────────────────────────── */
 
-.wpup-checkout-login-notice {
-	margin-bottom: 24px;
-}
+.wpup-checkout-login-notice { margin-bottom: 24px; }
 
-/* ── WP login page injection ─────────────────────────────────────────────── */
+/* ── Mobile: bottom-sheet feel ───────────────────────────── */
 
-#wpup-login-wp-injection {
-	margin-bottom: 20px;
-}
-
-/* ── Dark mode ───────────────────────────────────────────────────────────── */
-
-@media ( prefers-color-scheme: dark ) {
-	:root {
-		--wpup-bg:     #1d2327;
-		--wpup-border: #3c434a;
-	}
-
+@media (max-width: 480px) {
 	.wpup-login-wrapper {
-		color: #f0f0f1;
+		padding: 22px 18px;
+		border-radius: 12px;
+		font-size: 15px;
 	}
 
-	.wpup-field input {
-		background: #2c3338;
-		color: #f0f0f1;
-		border-color: #3c434a;
+	.wpup-field input[type="text"],
+	.wpup-field input[type="tel"],
+	.wpup-field input[type="email"],
+	.wpup-field input[type="password"] {
+		font-size: 16px; /* prevents iOS zoom on focus */
+		padding: 12px 14px;
 	}
 
-	.wpup-tab {
-		color: #a7aaad;
+	.wpup-otp-boxes input {
+		width: 42px;
+		height: 52px;
+		font-size: 22px;
+	}
+
+	.wpup-field-row { grid-template-columns: 1fr; }
+
+	.wpup-btn { min-height: 48px; font-size: 15px; }
+}
+
+/* ── Dark mode ───────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--wpup-text:          #f1f5f9;
+		--wpup-text-muted:    #94a3b8;
+		--wpup-bg:            #1e293b;
+		--wpup-bg-alt:        #0f172a;
+		--wpup-border:        #334155;
+		--wpup-border-strong: #475569;
+		--wpup-shadow:        0 10px 30px -8px rgba(0,0,0,0.5), 0 4px 12px -2px rgba(0,0,0,0.3);
 	}
 }
 
-/* ============================================================
-   Mobile Prompt Modal
-   ============================================================ */
+/* ── Mobile prompt modal ─────────────────────────────────── */
 
 .wpup-prompt-overlay {
 	position: fixed;
 	inset: 0;
-	background: rgba( 0, 0, 0, 0.55 );
+	background: rgba(15, 23, 42, 0.55);
+	backdrop-filter: blur(4px);
 	z-index: 999999;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	padding: 16px;
-	box-sizing: border-box;
+	animation: wpupOverlayIn 0.2s ease-out;
 }
+
+@keyframes wpupOverlayIn { from { opacity: 0; } to { opacity: 1; } }
 
 .wpup-prompt-box {
 	position: relative;
-	background: var( --wpup-bg, #fff );
-	border-radius: var( --wpup-radius, 8px );
+	background: var(--wpup-bg);
+	color: var(--wpup-text);
+	border-radius: var(--wpup-radius);
 	max-width: 420px;
 	width: 100%;
 	padding: 28px 24px 20px;
-	box-shadow: 0 12px 40px rgba( 0, 0, 0, 0.25 );
+	box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.3);
 	direction: rtl;
-	font-family: inherit;
-	box-sizing: border-box;
+	font-family: var(--wpup-font);
+	animation: wpupBoxIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes wpupBoxIn {
+	from { opacity: 0; transform: scale(0.95) translateY(10px); }
+	to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .wpup-prompt-box h3 {
-	margin: 0 0 8px;
+	margin: 0 0 6px;
 	font-size: 17px;
 	font-weight: 700;
 }
@@ -327,35 +462,48 @@
 .wpup-prompt-desc {
 	margin: 0 0 18px;
 	font-size: 13px;
-	color: #50575e;
+	color: var(--wpup-text-muted);
 	line-height: 1.7;
 }
 
 .wpup-prompt-close {
 	position: absolute;
-	top: 10px;
-	left: 10px;
-	background: none;
+	top: 12px;
+	left: 12px;
+	background: var(--wpup-bg-alt);
 	border: none;
-	font-size: 22px;
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	font-size: 18px;
 	cursor: pointer;
-	color: #50575e;
+	color: var(--wpup-text-muted);
 	line-height: 1;
-	padding: 4px 8px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all var(--wpup-transition);
 }
 
-.wpup-prompt-close:hover { color: #1d2327; }
+.wpup-prompt-close:hover { background: var(--wpup-border); color: var(--wpup-text); }
 
 .wpup-prompt-actions {
 	text-align: center;
-	margin-top: 14px;
+	margin-top: 16px;
 	padding-top: 12px;
-	border-top: 1px solid #f0f0f1;
+	border-top: 1px solid var(--wpup-border);
 }
 
-#wpup-prompt-otp {
-	text-align: center;
-	letter-spacing: 6px;
-	font-size: 20px;
-	font-weight: 700;
+@media (max-width: 480px) {
+	.wpup-prompt-overlay { align-items: flex-end; padding: 0; }
+	.wpup-prompt-box {
+		max-width: 100%;
+		border-radius: 16px 16px 0 0;
+		padding-bottom: 28px;
+		animation: wpupSheetIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+	@keyframes wpupSheetIn {
+		from { transform: translateY(100%); }
+		to   { transform: translateY(0); }
+	}
 }
