@@ -1,0 +1,290 @@
+/* ============================================================
+   Optiwise Login – Front-end styles
+   RTL / Farsi-first, fully responsive.
+   ============================================================ */
+
+:root {
+	--wpup-primary:       #2271b1;
+	--wpup-primary-hover: #135e96;
+	--wpup-success:       #00a32a;
+	--wpup-error:         #d63638;
+	--wpup-bg:            #ffffff;
+	--wpup-border:        #c3c4c7;
+	--wpup-radius:        8px;
+	--wpup-font:          inherit;
+	--wpup-transition:    0.2s ease;
+}
+
+/* ── Wrapper ─────────────────────────────────────────────────────────────── */
+
+.wpup-login-wrapper {
+	font-family: var( --wpup-font );
+	direction: rtl;
+	max-width: 480px;
+	margin: 0 auto;
+	background: var( --wpup-bg );
+	border: 1px solid var( --wpup-border );
+	border-radius: var( --wpup-radius );
+	padding: 24px;
+	box-sizing: border-box;
+}
+
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
+
+.wpup-tabs {
+	display: flex;
+	border-bottom: 2px solid var( --wpup-border );
+	margin-bottom: 24px;
+	gap: 4px;
+}
+
+.wpup-tab {
+	flex: 1;
+	padding: 10px 16px;
+	background: transparent;
+	border: none;
+	border-bottom: 3px solid transparent;
+	margin-bottom: -2px;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 500;
+	color: #50575e;
+	transition: color var( --wpup-transition ), border-color var( --wpup-transition );
+	border-radius: 4px 4px 0 0;
+}
+
+.wpup-tab:hover {
+	color: var( --wpup-primary );
+}
+
+.wpup-tab--active {
+	color: var( --wpup-primary );
+	border-bottom-color: var( --wpup-primary );
+}
+
+/* ── Panel ───────────────────────────────────────────────────────────────── */
+
+.wpup-panel-title {
+	margin: 0 0 8px;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.wpup-panel-desc {
+	margin: 0 0 20px;
+	color: #50575e;
+	font-size: 14px;
+}
+
+/* ── Notice ──────────────────────────────────────────────────────────────── */
+
+.wpup-notice {
+	padding: 10px 14px;
+	border-radius: var( --wpup-radius );
+	font-size: 14px;
+	margin-bottom: 16px;
+}
+
+.wpup-notice--success {
+	background: #edfaef;
+	border: 1px solid #00a32a;
+	color: #00a32a;
+}
+
+.wpup-notice--error {
+	background: #fce8e8;
+	border: 1px solid var( --wpup-error );
+	color: var( --wpup-error );
+}
+
+/* ── Fields ──────────────────────────────────────────────────────────────── */
+
+.wpup-field {
+	margin-bottom: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.wpup-field label {
+	font-size: 13px;
+	font-weight: 500;
+	color: #1d2327;
+}
+
+.wpup-required {
+	color: var( --wpup-error );
+}
+
+.wpup-field input[type="text"],
+.wpup-field input[type="tel"],
+.wpup-field input[type="email"],
+.wpup-field input[type="password"],
+.wpup-field input[type="number"] {
+	width: 100%;
+	padding: 9px 12px;
+	border: 1px solid var( --wpup-border );
+	border-radius: 4px;
+	font-size: 14px;
+	box-sizing: border-box;
+	transition: border-color var( --wpup-transition ), box-shadow var( --wpup-transition );
+	background: #fff;
+}
+
+.wpup-field input:focus {
+	outline: none;
+	border-color: var( --wpup-primary );
+	box-shadow: 0 0 0 2px rgba( 34, 113, 177, 0.15 );
+}
+
+/* OTP input – larger, centered */
+#wpup-otp,
+#wpup-otp-reg {
+	text-align: center;
+	letter-spacing: 6px;
+	font-size: 22px;
+	font-weight: 700;
+}
+
+.wpup-field-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+
+@media ( max-width: 420px ) {
+	.wpup-field-row {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Password toggle */
+.wpup-password-wrap {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.wpup-password-wrap input {
+	flex: 1;
+	padding-left: 40px;
+}
+
+.wpup-toggle-pass {
+	position: absolute;
+	left: 8px;
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 4px;
+	color: #50575e;
+	font-size: 16px;
+	line-height: 1;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+.wpup-btn {
+	display: inline-block;
+	padding: 10px 20px;
+	font-size: 14px;
+	font-weight: 600;
+	border: none;
+	border-radius: var( --wpup-radius );
+	cursor: pointer;
+	transition: background var( --wpup-transition ), opacity var( --wpup-transition );
+	width: 100%;
+	text-align: center;
+}
+
+.wpup-btn--primary {
+	background: var( --wpup-primary );
+	color: #fff;
+}
+
+.wpup-btn--primary:hover {
+	background: var( --wpup-primary-hover );
+}
+
+.wpup-btn:disabled {
+	opacity: 0.65;
+	cursor: not-allowed;
+}
+
+.wpup-btn-link {
+	background: none;
+	border: none;
+	color: var( --wpup-primary );
+	cursor: pointer;
+	font-size: 13px;
+	padding: 4px 0;
+	text-decoration: underline;
+}
+
+.wpup-btn-link:hover {
+	color: var( --wpup-primary-hover );
+}
+
+/* ── Resend row ──────────────────────────────────────────────────────────── */
+
+.wpup-resend {
+	text-align: center;
+	margin: 12px 0 4px;
+	font-size: 13px;
+	color: #50575e;
+}
+
+/* ── Back link ───────────────────────────────────────────────────────────── */
+
+.wpup-back {
+	display: block;
+	margin-top: 12px;
+	font-size: 13px;
+}
+
+/* ── Forgot password ─────────────────────────────────────────────────────── */
+
+.wpup-forgot-password {
+	text-align: center;
+	margin-top: 12px;
+	font-size: 13px;
+}
+
+.wpup-forgot-password a {
+	color: var( --wpup-primary );
+}
+
+/* ── Checkout notice wrapper ─────────────────────────────────────────────── */
+
+.wpup-checkout-login-notice {
+	margin-bottom: 24px;
+}
+
+/* ── WP login page injection ─────────────────────────────────────────────── */
+
+#wpup-login-wp-injection {
+	margin-bottom: 20px;
+}
+
+/* ── Dark mode ───────────────────────────────────────────────────────────── */
+
+@media ( prefers-color-scheme: dark ) {
+	:root {
+		--wpup-bg:     #1d2327;
+		--wpup-border: #3c434a;
+	}
+
+	.wpup-login-wrapper {
+		color: #f0f0f1;
+	}
+
+	.wpup-field input {
+		background: #2c3338;
+		color: #f0f0f1;
+		border-color: #3c434a;
+	}
+
+	.wpup-tab {
+		color: #a7aaad;
+	}
+}

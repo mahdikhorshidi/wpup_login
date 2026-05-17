@@ -1,0 +1,33 @@
+/* ── Optiwise Login – Admin styles ─────────────────────── */
+
+.wpup-admin-wrap h1 {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.wpup-admin-header {
+	background: #f0f6fc;
+	border-right: 4px solid #2271b1;
+	padding: 12px 16px;
+	margin-bottom: 20px;
+	border-radius: 0 4px 4px 0;
+}
+
+.wpup-admin-shortcode-info {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 16px 20px;
+	margin-top: 20px;
+	max-width: 600px;
+}
+
+.wpup-admin-shortcode-info code {
+	display: inline-block;
+	background: #f0f0f1;
+	padding: 4px 10px;
+	border-radius: 3px;
+	font-size: 13px;
+	margin: 4px 0;
+}
