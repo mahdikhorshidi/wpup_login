@@ -1,336 +1,270 @@
-/* global wpupLogin, jQuery */
+/* global wpupLoginCfg, jQuery */
 ( function ( $ ) {
 	'use strict';
 
-	const cfg     = wpupLogin;
-	const i18n    = cfg.i18n;
+	var cfg  = wpupLoginCfg;
+	var i18n = cfg.i18n;
 
-	// ── DOM refs ─────────────────────────────────────────────────────────────
+	// =========================================================================
+	// WpupForm – one instance per .wpup-login-wrapper on the page
+	// =========================================================================
 
-	const $wrapper   = $( '#wpup-login-wrapper' );
+	function WpupForm( wrapper ) {
+		var $w = $( wrapper );
 
-	// Tabs
-	const $tabs      = $wrapper.find( '.wpup-tab' );
-	const $panels    = $wrapper.find( '.wpup-tab-panel' );
+		// ── Internal DOM refs (all scoped to this wrapper) ─────────────────
+		var fn = {
+			tab:          '.js-wpup-tab',
+			panel:        '.js-wpup-panel',
+			notice:       '.js-wpup-notice',
+			mobileInput:  '.js-wpup-mobile',
+			btnSendOtp:   '.js-wpup-send-otp',
 
-	// Mobile step
-	const $stepMobile   = $( '#wpup-step-mobile' );
-	const $mobileInput  = $( '#wpup-mobile' );
-	const $btnSendOtp   = $( '#wpup-btn-send-otp' );
+			// Login (existing user)
+			stepOtpLogin: '.js-wpup-step-otp-login',
+			otpInput:     '.js-wpup-otp',
+			btnVerify:    '.js-wpup-verify-login',
+			mobileDisp:   '.js-wpup-mobile-disp',
+			btnResend:    '.js-wpup-resend',
+			countdown:    '.js-wpup-countdown',
+			btnBack:      '.js-wpup-back-login',
 
-	// OTP login step (existing user)
-	const $stepOtpLogin = $( '#wpup-step-otp-login' );
-	const $otpInput     = $( '#wpup-otp' );
-	const $btnVerify    = $( '#wpup-btn-verify-login' );
-	const $mobileDisp   = $( '#wpup-mobile-display' );
-	const $btnResend    = $( '#wpup-btn-resend' );
-	const $countdown    = $( '#wpup-countdown' );
-	const $btnBack      = $( '#wpup-btn-back-login' );
+			// Register (new user)
+			stepOtpReg:   '.js-wpup-step-otp-reg',
+			otpRegInput:  '.js-wpup-otp-reg',
+			btnVerifyReg: '.js-wpup-verify-reg',
+			mobileDispReg:'.js-wpup-mobile-disp-reg',
+			btnResendReg: '.js-wpup-resend-reg',
+			countdownReg: '.js-wpup-countdown-reg',
+			btnBackReg:   '.js-wpup-back-reg',
 
-	// OTP register step (new user)
-	const $stepOtpReg   = $( '#wpup-step-otp-register' );
-	const $otpRegInput  = $( '#wpup-otp-reg' );
-	const $btnVerifyReg = $( '#wpup-btn-verify-register' );
-	const $mobileDispReg= $( '#wpup-mobile-display-reg' );
-	const $btnResendReg = $( '#wpup-btn-resend-reg' );
-	const $countdownReg = $( '#wpup-countdown-reg' );
-	const $btnBackReg   = $( '#wpup-btn-back-register' );
+			stepMobile:   '.js-wpup-step-mobile',
+			redirect:     '.js-wpup-redirect',
+		};
 
-	// Password toggle
-	$wrapper.on( 'click', '.wpup-toggle-pass', function () {
-		const $input = $( this ).prev( 'input' );
-		$input.attr( 'type', $input.attr( 'type' ) === 'password' ? 'text' : 'password' );
-	} );
+		function find( selector ) { return $w.find( selector ); }
 
-	const $notice   = $( '#wpup-notice' );
-	const $redirect = $( '#wpup-redirect' );
+		var countdownTimer    = null;
+		var countdownTimerReg = null;
 
-	let countdownTimer = null;
-	let countdownTimerReg = null;
+		// ── Tabs ──────────────────────────────────────────────────────────
+		$w.on( 'click', fn.tab, function () {
+			var $tab    = $( this );
+			var panelId = $tab.data( 'target' );
 
-	// ── Tab switching ─────────────────────────────────────────────────────────
+			find( fn.tab ).removeClass( 'wpup-tab--active' ).attr( 'aria-selected', 'false' );
+			$tab.addClass( 'wpup-tab--active' ).attr( 'aria-selected', 'true' );
 
-	$tabs.on( 'click', function () {
-		const $tab   = $( this );
-		const target = $tab.attr( 'aria-controls' );
+			find( fn.panel ).hide().attr( 'aria-hidden', 'true' );
+			$w.find( '[data-panel="' + panelId + '"]' ).show().attr( 'aria-hidden', 'false' );
+		} );
 
-		$tabs.removeClass( 'wpup-tab--active' ).attr( 'aria-selected', 'false' );
-		$tab.addClass( 'wpup-tab--active' ).attr( 'aria-selected', 'true' );
-
-		$panels.hide().attr( 'aria-hidden', 'true' );
-		$( '#' + target ).show().attr( 'aria-hidden', 'false' );
-	} );
-
-	// ── Notice helper ─────────────────────────────────────────────────────────
-
-	function showNotice( msg, type ) {
-		$notice.text( msg )
-		       .removeClass( 'wpup-notice--success wpup-notice--error' )
-		       .addClass( 'wpup-notice--' + ( type || 'error' ) )
-		       .slideDown( 200 );
-	}
-
-	function hideNotice() {
-		$notice.slideUp( 100 );
-	}
-
-	// ── Countdown helper ──────────────────────────────────────────────────────
-
-	function startCountdown( $countdownEl, $resendBtn, seconds, onExpire ) {
-		clearCountdown( $countdownEl, $resendBtn );
-		let remaining = seconds;
-
-		$resendBtn.hide();
-		updateCountdownText();
-
-		countdownTimer = setInterval( function () {
-			remaining--;
-			if ( remaining <= 0 ) {
-				clearCountdown( $countdownEl, $resendBtn );
-				$resendBtn.show();
-				if ( typeof onExpire === 'function' ) {
-					onExpire();
-				}
-			} else {
-				updateCountdownText();
-			}
-		}, 1000 );
-
-		function updateCountdownText() {
-			$countdownEl.text( i18n.resend_in.replace( '%s', remaining ) );
+		// ── Notice ────────────────────────────────────────────────────────
+		function notice( msg, type ) {
+			find( fn.notice )
+				.text( msg )
+				.removeClass( 'wpup-notice--success wpup-notice--error' )
+				.addClass( 'wpup-notice--' + ( type || 'error' ) )
+				.show();
 		}
-	}
+		function clearNotice() { find( fn.notice ).hide(); }
 
-	function clearCountdown( $countdownEl, $resendBtn ) {
-		if ( countdownTimer ) {
-			clearInterval( countdownTimer );
-			countdownTimer = null;
-		}
-		$countdownEl.text( '' );
-	}
-
-	// ── Step 1: Send OTP ──────────────────────────────────────────────────────
-
-	$btnSendOtp.on( 'click', function () {
-		sendOtp();
-	} );
-
-	$mobileInput.on( 'keypress', function ( e ) {
-		if ( e.which === 13 ) {
-			sendOtp();
-		}
-	} );
-
-	function sendOtp() {
-		hideNotice();
-		const mobile = $mobileInput.val().trim();
-
-		if ( ! /^09[0-9]{9}$/.test( mobile ) ) {
-			showNotice( 'شماره موبایل وارد شده معتبر نیست (مثال: 09123456789)', 'error' );
-			return;
+		// ── Countdown ─────────────────────────────────────────────────────
+		function startCountdown( $cd, $btn, seconds, timerRef ) {
+			if ( timerRef && timerRef.id ) { clearInterval( timerRef.id ); }
+			var rem = seconds;
+			$btn.hide();
+			tick();
+			var id = setInterval( function () {
+				rem--;
+				if ( rem <= 0 ) { clearInterval( id ); $cd.text( '' ); $btn.show(); }
+				else { tick(); }
+			}, 1000 );
+			if ( timerRef ) { timerRef.id = id; }
+			function tick() { $cd.text( i18n.resend_in.replace( '%s', rem ) ); }
 		}
 
-		$btnSendOtp.prop( 'disabled', true ).text( i18n.sending );
-
-		$.post( cfg.ajaxurl, {
-			action : 'wpup_send_otp',
-			nonce  : cfg.nonce,
-			mobile : mobile,
-		} )
-		.done( function ( res ) {
-			if ( ! res.success ) {
-				showNotice( res.data.message, 'error' );
+		// ── Step 1: Send OTP ──────────────────────────────────────────────
+		function sendOtp() {
+			clearNotice();
+			var mobile = find( fn.mobileInput ).val().trim();
+			if ( ! /^09[0-9]{9}$/.test( mobile ) ) {
+				notice( i18n.mobile_inv );
 				return;
 			}
+			var $btn = find( fn.btnSendOtp );
+			$btn.prop( 'disabled', true ).text( i18n.sending );
 
-			showNotice( i18n.otp_sent, 'success' );
-			$stepMobile.hide();
-
-			if ( res.data.user_exists ) {
-				// Existing user: just verify OTP.
-				$mobileDisp.text( mobile );
-				$stepOtpLogin.show();
-				$otpInput.focus();
-				startCountdown( $countdown, $btnResend, 60 );
-			} else {
-				// New user: register form.
-				$mobileDispReg.text( mobile );
-				$stepOtpReg.show();
-				$otpRegInput.focus();
-				startCountdown( $countdownReg, $btnResendReg, 60 );
-			}
-		} )
-		.fail( function () {
-			showNotice( 'خطا در ارتباط با سرور. لطفاً دوباره تلاش کنید.', 'error' );
-		} )
-		.always( function () {
-			$btnSendOtp.prop( 'disabled', false ).text( i18n.send_otp );
-		} );
-	}
-
-	// ── Back buttons ──────────────────────────────────────────────────────────
-
-	$btnBack.on( 'click', function () {
-		$stepOtpLogin.hide();
-		$stepMobile.show();
-		hideNotice();
-		clearCountdown( $countdown, $btnResend );
-		$mobileInput.focus();
-	} );
-
-	$btnBackReg.on( 'click', function () {
-		$stepOtpReg.hide();
-		$stepMobile.show();
-		hideNotice();
-		clearCountdown( $countdownReg, $btnResendReg );
-		$mobileInput.focus();
-	} );
-
-	// ── Resend OTP ────────────────────────────────────────────────────────────
-
-	function resendOtp( $countdownEl, $resendBtn ) {
-		const mobile = $mobileInput.val().trim();
-		$resendBtn.prop( 'disabled', true );
-
-		$.post( cfg.ajaxurl, {
-			action : 'wpup_send_otp',
-			nonce  : cfg.nonce,
-			mobile : mobile,
-		} )
-		.done( function ( res ) {
-			if ( res.success ) {
-				showNotice( i18n.otp_sent, 'success' );
-				startCountdown( $countdownEl, $resendBtn, 60 );
-			} else {
-				showNotice( res.data.message, 'error' );
-				$resendBtn.prop( 'disabled', false );
-			}
-		} )
-		.fail( function () {
-			showNotice( 'خطا در ارسال مجدد کد.', 'error' );
-			$resendBtn.prop( 'disabled', false );
-		} );
-	}
-
-	$btnResend.on( 'click', function () {
-		resendOtp( $countdown, $btnResend );
-	} );
-
-	$btnResendReg.on( 'click', function () {
-		resendOtp( $countdownReg, $btnResendReg );
-	} );
-
-	// ── Step 2a: Verify OTP (login existing user) ─────────────────────────────
-
-	$btnVerify.on( 'click', function () {
-		verifyAndLogin();
-	} );
-
-	$otpInput.on( 'keypress', function ( e ) {
-		if ( e.which === 13 ) {
-			verifyAndLogin();
-		}
-	} );
-
-	function verifyAndLogin() {
-		hideNotice();
-		const otp = $otpInput.val().trim();
-
-		if ( otp.length !== 6 ) {
-			showNotice( 'کد تأیید باید ۶ رقم باشد.', 'error' );
-			return;
+			$.post( cfg.ajaxurl, {
+				action: 'wpup_send_otp',
+				nonce:  cfg.nonce,
+				mobile: mobile,
+			} )
+			.done( function ( res ) {
+				if ( ! res.success ) { notice( res.data.message ); return; }
+				notice( i18n.otp_sent, 'success' );
+				find( fn.stepMobile ).hide();
+				if ( res.data.user_exists ) {
+					find( fn.mobileDisp ).text( mobile );
+					find( fn.stepOtpLogin ).show();
+					find( fn.otpInput ).focus();
+					var tr = {}; countdownTimer = tr;
+					startCountdown( find( fn.countdown ), find( fn.btnResend ), 60, tr );
+				} else {
+					find( fn.mobileDispReg ).text( mobile );
+					find( fn.stepOtpReg ).show();
+					find( fn.otpRegInput ).focus();
+					var tr2 = {}; countdownTimerReg = tr2;
+					startCountdown( find( fn.countdownReg ), find( fn.btnResendReg ), 60, tr2 );
+				}
+			} )
+			.fail( function () { notice( i18n.net_error ); } )
+			.always( function () { $btn.prop( 'disabled', false ).text( i18n.send_otp ); } );
 		}
 
-		$btnVerify.prop( 'disabled', true ).text( i18n.verifying );
+		$w.on( 'click', fn.btnSendOtp, sendOtp );
+		$w.on( 'keypress', fn.mobileInput, function ( e ) { if ( e.which === 13 ) { sendOtp(); } } );
 
-		$.post( cfg.ajaxurl, {
-			action   : 'wpup_verify_login',
-			nonce    : cfg.nonce,
-			mobile   : $mobileInput.val().trim(),
-			otp      : otp,
-			redirect : $redirect.val(),
-		} )
-		.done( handleVerifyResponse )
-		.fail( ajaxFail )
-		.always( function () {
-			$btnVerify.prop( 'disabled', false ).text( i18n.verify );
+		// ── Back ──────────────────────────────────────────────────────────
+		$w.on( 'click', fn.btnBack, function () {
+			find( fn.stepOtpLogin ).hide();
+			find( fn.stepMobile ).show();
+			clearNotice();
+			find( fn.mobileInput ).focus();
 		} );
-	}
-
-	// ── Step 2b: Verify OTP + register ────────────────────────────────────────
-
-	$btnVerifyReg.on( 'click', function () {
-		verifyAndRegister();
-	} );
-
-	function verifyAndRegister() {
-		hideNotice();
-
-		const otp       = $otpRegInput.val().trim();
-		const firstName = $( '#wpup-first-name' ).val().trim();
-		const lastName  = $( '#wpup-last-name' ).val().trim();
-		const username  = $( '#wpup-username' ).val().trim();
-		const password  = $( '#wpup-password' ).val();
-		const email     = $( '#wpup-email' ).val().trim();
-
-		if ( ! firstName ) { showNotice( 'نام الزامی است.', 'error' ); return; }
-		if ( ! lastName )  { showNotice( 'نام خانوادگی الزامی است.', 'error' ); return; }
-		if ( ! username )  { showNotice( 'نام کاربری الزامی است.', 'error' ); return; }
-		if ( password.length < 6 ) { showNotice( 'رمز عبور باید حداقل ۶ کاراکتر باشد.', 'error' ); return; }
-		if ( otp.length !== 6 )    { showNotice( 'کد تأیید باید ۶ رقم باشد.', 'error' ); return; }
-
-		$btnVerifyReg.prop( 'disabled', true ).text( i18n.verifying );
-
-		$.post( cfg.ajaxurl, {
-			action     : 'wpup_verify_login',
-			nonce      : cfg.nonce,
-			mobile     : $mobileInput.val().trim(),
-			otp        : otp,
-			first_name : firstName,
-			last_name  : lastName,
-			username   : username,
-			password   : password,
-			email      : email,
-			redirect   : $redirect.val(),
-		} )
-		.done( handleVerifyResponse )
-		.fail( ajaxFail )
-		.always( function () {
-			$btnVerifyReg.prop( 'disabled', false ).text( i18n.verify );
+		$w.on( 'click', fn.btnBackReg, function () {
+			find( fn.stepOtpReg ).hide();
+			find( fn.stepMobile ).show();
+			clearNotice();
+			find( fn.mobileInput ).focus();
 		} );
-	}
 
-	// ── Shared response handler ────────────────────────────────────────────────
-
-	function handleVerifyResponse( res ) {
-		if ( ! res.success ) {
-			showNotice( res.data.message, 'error' );
-			return;
+		// ── Resend ────────────────────────────────────────────────────────
+		function resendOtp( $cd, $btn, timer ) {
+			var mobile = find( fn.mobileInput ).val().trim();
+			$btn.prop( 'disabled', true );
+			$.post( cfg.ajaxurl, {
+				action: 'wpup_send_otp',
+				nonce:  cfg.nonce,
+				mobile: mobile,
+			} )
+			.done( function ( res ) {
+				if ( res.success ) {
+					notice( i18n.otp_sent, 'success' );
+					startCountdown( $cd, $btn, 60, timer );
+				} else {
+					notice( res.data.message );
+					$btn.prop( 'disabled', false );
+				}
+			} )
+			.fail( function () { notice( i18n.net_error ); $btn.prop( 'disabled', false ); } );
 		}
-		showNotice( 'ورود موفق! در حال انتقال…', 'success' );
-		const dest = res.data.redirect || cfg.redirect || '/';
-		setTimeout( function () {
-			window.location.href = dest;
-		}, 800 );
+		$w.on( 'click', fn.btnResend, function () {
+			resendOtp( find( fn.countdown ), find( fn.btnResend ), countdownTimer );
+		} );
+		$w.on( 'click', fn.btnResendReg, function () {
+			resendOtp( find( fn.countdownReg ), find( fn.btnResendReg ), countdownTimerReg );
+		} );
+
+		// ── Verify (existing user) ────────────────────────────────────────
+		function verifyLogin() {
+			clearNotice();
+			var otp = find( fn.otpInput ).val().trim();
+			if ( otp.length !== 6 ) { notice( i18n.otp_len ); return; }
+			var $btn = find( fn.btnVerify );
+			$btn.prop( 'disabled', true ).text( i18n.verifying );
+			$.post( cfg.ajaxurl, {
+				action:    'wpup_verify_login',
+				nonce:     cfg.nonce,
+				mobile:    find( fn.mobileInput ).val().trim(),
+				otp:       otp,
+				redirect:  find( fn.redirect ).val() || cfg.redirect,
+			} )
+			.done( handleResponse )
+			.fail( function () { notice( i18n.net_error ); } )
+			.always( function () { $btn.prop( 'disabled', false ).text( i18n.verify ); } );
+		}
+		$w.on( 'click', fn.btnVerify, verifyLogin );
+		$w.on( 'keypress', fn.otpInput, function ( e ) { if ( e.which === 13 ) { verifyLogin(); } } );
+
+		// ── Verify (new user) ─────────────────────────────────────────────
+		function verifyRegister() {
+			clearNotice();
+			var otp       = find( fn.otpRegInput ).val().trim();
+			var firstName = find( '.js-wpup-first-name' ).val().trim();
+			var lastName  = find( '.js-wpup-last-name' ).val().trim();
+			var username  = find( '.js-wpup-username' ).val().trim();
+			var password  = find( '.js-wpup-password' ).val();
+			var email     = find( '.js-wpup-email' ).val().trim();
+
+			if ( ! firstName ) { notice( i18n.req_fname ); return; }
+			if ( ! lastName )  { notice( i18n.req_lname ); return; }
+			if ( ! username )  { notice( i18n.req_uname ); return; }
+			if ( password.length < 6 ) { notice( i18n.req_pass ); return; }
+			if ( otp.length !== 6 )    { notice( i18n.otp_len );  return; }
+
+			var $btn = find( fn.btnVerifyReg );
+			$btn.prop( 'disabled', true ).text( i18n.verifying );
+			$.post( cfg.ajaxurl, {
+				action:      'wpup_verify_login',
+				nonce:       cfg.nonce,
+				mobile:      find( fn.mobileInput ).val().trim(),
+				otp:         otp,
+				first_name:  firstName,
+				last_name:   lastName,
+				username:    username,
+				password:    password,
+				email:       email,
+				redirect:    find( fn.redirect ).val() || cfg.redirect,
+			} )
+			.done( handleResponse )
+			.fail( function () { notice( i18n.net_error ); } )
+			.always( function () { $btn.prop( 'disabled', false ).text( i18n.verify ); } );
+		}
+		$w.on( 'click', fn.btnVerifyReg, verifyRegister );
+
+		// ── Shared response handler ───────────────────────────────────────
+		function handleResponse( res ) {
+			if ( ! res.success ) { notice( res.data.message ); return; }
+			notice( i18n.success, 'success' );
+			setTimeout( function () {
+				window.location.href = res.data.redirect || cfg.redirect || '/';
+			}, 700 );
+		}
+
+		// ── OTP auto-advance ──────────────────────────────────────────────
+		$w.on( 'input', fn.otpInput, function () {
+			$( this ).val( $( this ).val().replace( /\D/g, '' ) );
+			if ( $( this ).val().length === 6 ) { verifyLogin(); }
+		} );
+		$w.on( 'input', fn.otpRegInput, function () {
+			$( this ).val( $( this ).val().replace( /\D/g, '' ) );
+			if ( $( this ).val().length === 6 ) { verifyRegister(); }
+		} );
+
+		// ── Password visibility toggle ────────────────────────────────────
+		$w.on( 'click', '.js-wpup-toggle-pass', function () {
+			var $i = $( this ).prev( 'input' );
+			$i.attr( 'type', $i.attr( 'type' ) === 'password' ? 'text' : 'password' );
+		} );
 	}
 
-	function ajaxFail() {
-		showNotice( 'خطا در ارتباط با سرور. لطفاً دوباره تلاش کنید.', 'error' );
-	}
+	// =========================================================================
+	// Bootstrap all existing forms + expose factory for dynamic injection
+	// =========================================================================
 
-	// ── OTP auto-advance (6 digits typed → submit) ────────────────────────────
-
-	function autoSubmitOtp( $input, submitFn ) {
-		$input.on( 'input', function () {
-			const val = $( this ).val().replace( /\D/g, '' );
-			$( this ).val( val );
-			if ( val.length === 6 ) {
-				submitFn();
+	function initAll() {
+		$( '.wpup-login-wrapper' ).each( function () {
+			if ( ! $( this ).data( 'wpup-init' ) ) {
+				$( this ).data( 'wpup-init', true );
+				new WpupForm( this );
 			}
 		} );
 	}
 
-	autoSubmitOtp( $otpInput,    verifyAndLogin );
-	autoSubmitOtp( $otpRegInput, verifyAndRegister );
+	$( initAll );
+
+	// Public: called by wpup-inject.js after injecting a cloned form.
+	window.wpupInitForm = function ( el ) { new WpupForm( el ); };
 
 } )( jQuery );

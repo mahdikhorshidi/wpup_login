@@ -2,114 +2,125 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Replaces all WordPress and WooCommerce login forms on the front-end
- * with the Optiwise mobile login form.
+ * Replaces all WordPress and WooCommerce login forms on the front-end.
+ *
+ * Strategy (three layers):
+ *  1. PHP hooks – intercept known action points in WC / WP and output our form.
+ *  2. ob_start capture – wrap WC's native form rendering to discard it cleanly.
+ *  3. JS injection – find any remaining native login forms in widgets / sidebars
+ *     (e.g. WoodMart header, Login widget) and swap them client-side.
  */
 class Wpup_Form_Replacer {
 
+	private static $rendering = false; // prevent recursion
+
 	public function __construct() {
-		// Enqueue assets on every front-end page.
-		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+		add_action( 'wp_enqueue_scripts',    array( $this, 'enqueue_assets' ) );
+		add_action( 'login_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 
-		// ── WooCommerce hooks ──────────────────────────────────────────────────
-		// Replace the login/register block on the My Account page.
-		add_filter( 'woocommerce_before_customer_login_form', '__return_false' );
-		add_action( 'woocommerce_before_customer_login_form', [ $this, 'render_form' ], 5 );
+		// ── WooCommerce My Account ─────────────────────────────────────────────
+		// Render our form BEFORE the WC form, then capture + discard WC's output.
+		add_action( 'woocommerce_before_customer_login_form', array( $this, 'wc_render_and_start_capture' ), 1 );
+		add_action( 'woocommerce_after_customer_login_form',  array( $this, 'wc_end_capture' ), 9999 );
 
-		// Remove WooCommerce's own login / register forms entirely.
-		remove_action( 'woocommerce_login_form_start', '__return_false' );
-		add_filter( 'woocommerce_login_form',          [ $this, 'override_wc_form' ] );
-		add_filter( 'woocommerce_register_form',       [ $this, 'override_wc_form' ] );
-
-		// Checkout login prompt.
+		// ── WooCommerce Checkout ───────────────────────────────────────────────
 		add_filter( 'woocommerce_checkout_login_message', '__return_empty_string' );
-		add_action( 'woocommerce_before_checkout_form', [ $this, 'maybe_render_checkout_login' ], 5 );
+		add_action( 'woocommerce_before_checkout_form', array( $this, 'maybe_render_checkout_login' ), 5 );
 
-		// ── WordPress core login page ──────────────────────────────────────────
-		add_filter( 'login_form_middle', [ $this, 'inject_into_wp_login' ], 10, 2 );
-		add_action( 'login_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+		// ── wp-login.php ───────────────────────────────────────────────────────
+		add_action( 'login_form_top', array( $this, 'inject_on_wp_login_page' ) );
 
-		// wp_login_form() shortcode / widget replacement.
-		add_filter( 'login_form_defaults', [ $this, 'capture_login_form_defaults' ] );
-		add_shortcode( 'wpup_login', [ $this, 'shortcode_render' ] );
+		// ── wp_login_form() called in theme/widget ─────────────────────────────
+		// We can't replace its output cleanly in PHP; JS will handle it.
 
-		// Override [woocommerce_my_account] shortcode login output via template.
-		add_filter( 'wc_get_template', [ $this, 'override_wc_login_template' ], 10, 5 );
+		// ── JS: print a hidden form template + injection script in footer ──────
+		add_action( 'wp_footer', array( $this, 'print_js_template' ), 5 );
+
+		// ── Shortcode ──────────────────────────────────────────────────────────
+		add_shortcode( 'wpup_login', array( $this, 'shortcode' ) );
 	}
 
-	// ── Assets ────────────────────────────────────────────────────────────────
+	// =========================================================================
+	// Assets
+	// =========================================================================
 
-	public function enqueue_assets(): void {
+	public function enqueue_assets() {
 		wp_enqueue_style(
 			'wpup-login',
 			WPUP_LOGIN_URL . 'assets/css/wpup-login.css',
-			[],
+			array(),
 			WPUP_LOGIN_VERSION
 		);
 
 		wp_enqueue_script(
 			'wpup-login',
 			WPUP_LOGIN_URL . 'assets/js/wpup-login.js',
-			[ 'jquery' ],
+			array( 'jquery' ),
 			WPUP_LOGIN_VERSION,
 			true
 		);
 
-		wp_localize_script( 'wpup-login', 'wpupLogin', [
-			'ajaxurl'      => admin_url( 'admin-ajax.php' ),
-			'nonce'        => wp_create_nonce( 'wpup_nonce' ),
-			'redirect'     => $this->default_redirect(),
-			'i18n'         => [
-				'send_otp'       => __( 'ارسال کد تأیید', 'wpup-login' ),
-				'resend_otp'     => __( 'ارسال مجدد کد', 'wpup-login' ),
-				'verify'         => __( 'تأیید و ورود', 'wpup-login' ),
-				'sending'        => __( 'در حال ارسال…', 'wpup-login' ),
-				'verifying'      => __( 'در حال تأیید…', 'wpup-login' ),
-				'otp_sent'       => __( 'کد تأیید ارسال شد.', 'wpup-login' ),
-				'resend_in'      => __( 'ارسال مجدد تا %s ثانیه', 'wpup-login' ),
-				'register_title' => __( 'تکمیل اطلاعات ثبت‌نام', 'wpup-login' ),
-				'login_title'    => __( 'ورود با کد تأیید', 'wpup-login' ),
-			],
-		] );
+		wp_localize_script( 'wpup-login', 'wpupLoginCfg', array(
+			'ajaxurl'  => admin_url( 'admin-ajax.php' ),
+			'nonce'    => wp_create_nonce( 'wpup_nonce' ),
+			'redirect' => $this->default_redirect(),
+			'i18n'     => array(
+				'send_otp'   => __( 'ارسال کد تأیید', 'wpup-login' ),
+				'resend_otp' => __( 'ارسال مجدد کد', 'wpup-login' ),
+				'verify'     => __( 'تأیید و ورود', 'wpup-login' ),
+				'sending'    => __( 'در حال ارسال…', 'wpup-login' ),
+				'verifying'  => __( 'در حال تأیید…', 'wpup-login' ),
+				'otp_sent'   => __( 'کد تأیید ارسال شد.', 'wpup-login' ),
+				'resend_in'  => __( 'ارسال مجدد تا %s ثانیه', 'wpup-login' ),
+				'success'    => __( 'ورود موفق! در حال انتقال…', 'wpup-login' ),
+				'net_error'  => __( 'خطا در ارتباط با سرور. لطفاً دوباره تلاش کنید.', 'wpup-login' ),
+				'otp_len'    => __( 'کد تأیید باید ۶ رقم باشد.', 'wpup-login' ),
+				'mobile_inv' => __( 'شماره موبایل وارد شده معتبر نیست (مثال: 09123456789)', 'wpup-login' ),
+				'req_fname'  => __( 'نام الزامی است.', 'wpup-login' ),
+				'req_lname'  => __( 'نام خانوادگی الزامی است.', 'wpup-login' ),
+				'req_uname'  => __( 'نام کاربری الزامی است.', 'wpup-login' ),
+				'req_pass'   => __( 'رمز عبور باید حداقل ۶ کاراکتر باشد.', 'wpup-login' ),
+			),
+		) );
+
+		// JS that injects our form into sidebar widgets / theme login popups.
+		wp_enqueue_script(
+			'wpup-inject',
+			WPUP_LOGIN_URL . 'assets/js/wpup-inject.js',
+			array( 'wpup-login' ),
+			WPUP_LOGIN_VERSION,
+			true
+		);
 	}
 
-	// ── Form rendering ────────────────────────────────────────────────────────
+	// =========================================================================
+	// WooCommerce My Account: render + capture
+	// =========================================================================
 
-	public function render_form( array $args = [] ): void {
-		$redirect = $args['redirect'] ?? $this->default_redirect();
-		include WPUP_LOGIN_PATH . 'templates/login-form.php';
-	}
-
-	public function shortcode_render( array $atts ): string {
-		ob_start();
-		$this->render_form( shortcode_atts( [ 'redirect' => '' ], $atts ) );
-		return ob_get_clean();
-	}
-
-	// ── WooCommerce template override ────────────────────────────────────────
-
-	/**
-	 * Swap WooCommerce's login / myaccount/form-login.php with our template.
-	 */
-	public function override_wc_login_template( string $template, string $template_name, array $args, string $template_path, string $default_path ): string {
-		$targets = [
-			'myaccount/form-login.php',
-			'global/form-login.php',
-		];
-		if ( in_array( $template_name, $targets, true ) ) {
-			return WPUP_LOGIN_PATH . 'templates/login-form.php';
+	public function wc_render_and_start_capture() {
+		if ( is_user_logged_in() ) {
+			return;
 		}
-		return $template;
+		$this->render_form();
+		// Capture WC's native form output so it does NOT appear on the page.
+		ob_start();
 	}
 
-	public function override_wc_form( string $html ): string {
-		// Return empty string; full form rendered via template override above.
-		return '';
+	public function wc_end_capture() {
+		if ( is_user_logged_in() ) {
+			return;
+		}
+		// Silently discard everything WC printed between the two action hooks.
+		if ( ob_get_level() > 0 ) {
+			ob_end_clean();
+		}
 	}
 
-	// ── Checkout login ────────────────────────────────────────────────────────
+	// =========================================================================
+	// WooCommerce Checkout
+	// =========================================================================
 
-	public function maybe_render_checkout_login(): void {
+	public function maybe_render_checkout_login() {
 		if ( is_user_logged_in() ) {
 			return;
 		}
@@ -117,38 +128,69 @@ class Wpup_Form_Replacer {
 			return;
 		}
 		echo '<div class="wpup-checkout-login-notice">';
-		echo '<p>' . esc_html__( 'برای ورود به حساب کاربری یا ثبت‌نام از فرم زیر استفاده کنید:', 'wpup-login' ) . '</p>';
+		echo '<p>' . esc_html__( 'برای ورود یا ثبت‌نام از فرم زیر استفاده کنید:', 'wpup-login' ) . '</p>';
 		$this->render_form();
 		echo '</div>';
 	}
 
-	// ── WordPress core login page injection ──────────────────────────────────
+	// =========================================================================
+	// wp-login.php
+	// =========================================================================
 
-	/**
-	 * Prepend our form to wp-login.php so it appears above the standard form.
-	 * We wrap both in a tabs UI via JS.
-	 */
-	public function inject_into_wp_login( string $content, array $args ): string {
+	public function inject_on_wp_login_page() {
+		$this->render_form( array( 'context' => 'wp-login' ) );
+	}
+
+	// =========================================================================
+	// Footer JS template (used by wpup-inject.js for sidebar/widget replacement)
+	// =========================================================================
+
+	public function print_js_template() {
+		if ( is_user_logged_in() ) {
+			return;
+		}
+		echo '<script type="text/html" id="wpup-login-tpl">';
+		$this->render_form( array( 'context' => 'template' ) );
+		echo '</script>';
+	}
+
+	// =========================================================================
+	// Shortcode  [wpup_login redirect="..."]
+	// =========================================================================
+
+	public function shortcode( $atts ) {
+		if ( is_user_logged_in() ) {
+			return '';
+		}
+		$atts = shortcode_atts( array( 'redirect' => '' ), $atts );
 		ob_start();
-		echo '<div id="wpup-login-wp-injection">';
-		$this->render_form( $args );
-		echo '</div>';
-		return ob_get_clean() . $content;
+		$this->render_form( $atts );
+		return ob_get_clean();
 	}
 
-	public function capture_login_form_defaults( array $defaults ): array {
-		// Trigger asset loading when wp_login_form() is called in a theme.
-		add_action( 'wp_footer', [ $this, 'render_form_via_footer' ] );
-		return $defaults;
+	// =========================================================================
+	// Core render
+	// =========================================================================
+
+	public function render_form( $args = array() ) {
+		if ( self::$rendering ) {
+			return; // guard against any accidental recursion
+		}
+		self::$rendering = true;
+
+		$redirect = ! empty( $args['redirect'] ) ? esc_url( $args['redirect'] ) : '';
+		$context  = isset( $args['context'] ) ? $args['context'] : 'inline';
+
+		include WPUP_LOGIN_PATH . 'templates/login-form.php';
+
+		self::$rendering = false;
 	}
 
-	public function render_form_via_footer(): void {
-		// No-op; assets already enqueued. Form rendered inline via template override.
-	}
+	// =========================================================================
+	// Helpers
+	// =========================================================================
 
-	// ── Helpers ───────────────────────────────────────────────────────────────
-
-	private function default_redirect(): string {
+	private function default_redirect() {
 		if ( function_exists( 'wc_get_page_permalink' ) ) {
 			return wc_get_page_permalink( 'myaccount' );
 		}
